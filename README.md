@@ -25,9 +25,9 @@ Through a rigorous **4,900+ configuration multi-stage grid search** spanning lex
 ## Theoretical Foundation & Mathematical Formulation
 
 ### 1. Document-Term & Word-Context Co-occurrence Matrices
-Let $\mathcal{D} = \{d_1, d_2, \dots, d_N\}$ denote the set of $N = 16$ character documents, where each document $d_i$ is formed by concatenating up to $L_{\max}$ spoken utterances separated by explicit end-of-line boundary markers `_EOL_`:
+Let $\mathcal{D} = \{d_1, d_2, \dots, d_N\}$ denote the set of $N = 16$ character documents, where each document $d_i$ is formed by concatenating up to $L_{\max}$ spoken utterances separated by explicit end-of-line boundary markers `<EOL>`:
 
-$$d_i = u_{i,1} \oplus \text{" \_EOL\_ "} \oplus u_{i,2} \oplus \dots \oplus u_{i,m_i}, \quad m_i \le L_{\max}$$
+$$d_i = u_{i,1} \oplus \langle\text{EOL}\rangle \oplus u_{i,2} \oplus \dots \oplus u_{i,m_i}, \quad m_i \le L_{\max}$$
 
 In addition to document-level unigram/n-gram representations, our package (`vector_semantics.cooccurrence`) implements sliding-window word-context co-occurrence matrices $C \in \mathbb{R}^{|V| \times |V|}$ over symmetric or directional context windows of radius $w \in \{1, 3, 5, \dots\}$:
 
@@ -122,10 +122,10 @@ Building upon the Optimal Q1 preprocessing pipeline, we executed five progressiv
    - Replaced univariate $\chi^2$ selection with multivariate L1-regularized `LinearSVC(C=0.1, penalty="l1")` via `SelectFromModel`.
    - **Finding:** Hard feature elimination degraded unigram Mean Rank to $2.9375$ at $k \le 2000$, demonstrating that tail vocabulary items carry subtle sociolect cues essential for speaker disambiguation.
 3. **Section 3 — Sub-Word Character N-Grams & Lexical Normalization Interaction (`results/Q2_Section3_No_Lemma.csv`, 320 runs):**
-   - Extracted character n-grams ($n \in \{(2,2), (2,3), (3,3), (4,4)\}$, $\text{char\_min\_df} \in \{3, 4, 5, 8, 10\}$) directly from raw lowercase dialogue and stacked them with $\ell_2$-normalized word unigrams.
-   - **Finding:** Character quadrigrams ($n=4, \text{char\_min\_df}=3$) with lemmatization removed (`lex_norm=None`) jumped performance to **Mean Rank 1.3125** and **Accuracy 87.50% (14/16)**. Sub-word quadrigrams capture phonetic spellings, suffixes (`ing `, `n't `), and cross-boundary punctuation patterns (`? _e`, `. _e`).
+   - Extracted character n-grams ($n \in \{(2,2), (2,3), (3,3), (4,4)\}$, `char_min_df` $\in \{3, 4, 5, 8, 10\}$) directly from raw lowercase dialogue and stacked them with $\ell_2$-normalized word unigrams.
+   - **Finding:** Character quadrigrams ($n=4$, `char_min_df=3`) with lemmatization removed (`lex_norm=None`) jumped performance to **Mean Rank 1.3125** and **Accuracy 87.50% (14/16)**. Sub-word quadrigrams capture phonetic spellings, suffixes (`ing `, `n't `), and cross-boundary punctuation patterns.
 4. **Section 4 — Sublinear TF Scaling & Multi-Matrix Weighting Grid (`results/Q2_Section4.csv`, 2,520 runs):**
-   - Evaluated a 2,520-configuration grid across scalar subspace weights $w_{\text{uni}} \in \{0.8, 0.9, 1.0, 1.25, 1.5, 2.0\}$, $w_{\text{char}} \in \{0.7, 0.8, 0.9, 1.0, 1.25\}$, word $\text{min\_df} \in \{\text{None}, 2, 3\}$, and `sublinear_tf` $\in \{\text{True}, \text{False}\}$ across both validation and blind test splits.
+   - Evaluated a 2,520-configuration grid across scalar subspace weights $w_{\text{uni}} \in \{0.8, 0.9, 1.0, 1.25, 1.5, 2.0\}$, $w_{\text{char}} \in \{0.7, 0.8, 0.9, 1.0, 1.25\}$, word `min_df` $\in \{\text{None}, 2, 3\}$, and `sublinear_tf` $\in \{\text{True}, \text{False}\}$ across both validation and blind test splits.
    - **Finding:** Enabling `sublinear_tf=True` ($1 + \log(\text{tf})$) and balancing the block weights at **$w_{\text{uni}} = 0.8, w_{\text{char}} = 0.7$** achieved the global optimum: **Validation Mean Rank 1.125 (93.75% Accuracy, 15/16)** and **Blind Test Mean Rank 1.125 (87.50% Accuracy, 14/16)**.
 5. **Section 5 — Raw Word+Char N-Grams (`results/Q2_Section5.csv`, 1,152 runs), Dense POS Ratios + TruncatedSVD (300 dim), & Neural `SentenceTransformer` Ensembles:**
    - Tested `char_wb` + raw word bigrams (1,152 runs), 10 explicit spaCy/NLTK POS & syntactic ratios combined with **300-component `TruncatedSVD`**, and dense 768-dimensional **`SentenceTransformer('all-mpnet-base-v2')`** utterance embeddings weighted by $w_{\text{embed}} \in [0.05, 2.0]$.
@@ -163,7 +163,7 @@ In our **Optimal Dual-Channel System** (Validation Mean Cosine Similarity $0.697
 | ![Baseline Validation Heatmap](docs/assets/heatmap_baseline_validation.png) | ![Optimal Validation Heatmap](docs/assets/heatmap_optimal_validation.png) | ![Optimal Test Heatmap](docs/assets/heatmap_optimal_test.png) |
 
 ### Element-Wise Feature Attribution (`vector_semantics.evaluation`)
-To explain *why* specific character pairs exhibit high or low similarity, we decompose the cosine inner product into element-wise feature contributions $c_k = v_{\text{val}, k} \cdot v_{\text{train}, k}$ and missing anchor differentials $|\text{Train\_Weight}_k - \text{Val\_Weight}_k|$.
+To explain *why* specific character pairs exhibit high or low similarity, we decompose the cosine inner product into element-wise feature contributions $c_k = v_{\text{val}, k} \cdot v_{\text{train}, k}$ and missing anchor differentials $|w_{\text{train}, k} - w_{\text{val}, k}|$.
 
 #### Table IV: Linguistic Attribution of Key Character Pairs (Validation vs. Training)
 
@@ -176,7 +176,7 @@ To explain *why* specific character pairs exhibit high or low similarity, we dec
 
 > [!IMPORTANT]
 > **Why Sub-Word Character Quadrigrams Outperformed Explicit POS Features & Neural Embeddings:**
-> Inspection of the top contributing features reveals that character quadrigrams spanning the `_EOL_` boundary—such as `? _e (char)`, `. _e (char)`, `ol_  (char)`, `n't  (char)`, and `...  (char)`—implicitly encode **sentence length (verbosity), interrogative density, negation rate, and hesitation cadence**. Consequently, adding explicit spaCy/NLTK POS ratios (`w_pos`) or 300-dimensional `TruncatedSVD` projections provided zero additional rank improvement over our weighted unigram + character quadrigram architecture. Similarly, dense `all-mpnet-base-v2` embeddings capture *topical semantics* (what scenes are about) rather than *idiosyncratic surface stylometry* (how a character speaks), explaining why large neural weights ($w_{\text{embed}} \ge 0.8$) diluted character distinction from Rank $1.125 \to 1.750$.
+> Inspection of the top contributing features reveals that character quadrigrams spanning the end-of-line boundary implicitly encode **sentence length (verbosity), interrogative density, negation rate, and hesitation cadence**. Consequently, adding explicit spaCy/NLTK POS ratios (`w_pos`) or 300-dimensional `TruncatedSVD` projections provided zero additional rank improvement over our weighted unigram + character quadrigram architecture. Similarly, dense `all-mpnet-base-v2` embeddings capture *topical semantics* (what scenes are about) rather than *idiosyncratic surface stylometry* (how a character speaks), explaining why large neural weights ($w_{\text{embed}} \ge 0.8$) diluted character distinction from Rank $1.125 \to 1.750$.
 
 ---
 
