@@ -14,7 +14,7 @@
 
 ## Abstract & Objective
 
-This project investigates **Vector Space Semantics** and the **Distributional Hypothesis** (*"You shall know a word by the company it keeps"* — Firth, 1957) applied to speaker identification and stylistic similarity retrieval across 16 primary characters from the *EastEnders* television script corpus (`training.csv`, `val.csv`, `test.csv`).
+This project investigates **Vector Space Semantics** and the **Distributional Hypothesis** (*"You shall know a word by the company it keeps"*: Firth, 1957) applied to speaker identification and stylistic similarity retrieval across 16 primary characters from the *EastEnders* television script corpus (`training.csv`, `val.csv`, `test.csv`).
 
 Given a strict utterance budget (**at most 300 spoken lines per character** in training, totaling $52,079$ words, and **at most 50 spoken lines per character** in validation and blind test splits, totaling $7,850$ and $8,939$ words respectively), raw line counts cannot be exploited as a trivial discriminator. Instead, each character's dialogue is embedded into a high-dimensional vector space where held-out validation and test documents are matched against training character profiles via **Cosine Similarity Information Retrieval (IR)**.
 
@@ -56,7 +56,7 @@ To project high-dimensional sparse representations $M \in \mathbb{R}^{N \times V
 $$W_{\text{SVD}} = U_k \Sigma_k^\gamma$$
 
 ### 4. Dual-Channel L2 Normalization & Weighted Block Fusion
-When combining heterogeneous feature spaces—such as preprocessed lexical unigrams $M_{\text{uni}} \in \mathbb{R}^{N \times V_{\text{word}}}$ ($V_{\text{word}} \approx 4,500$) and raw sub-word character quadrigrams $M_{\text{char}} \in \mathbb{R}^{N \times V_{\text{char}}}$ ($V_{\text{char}} \approx 15,000+$)—direct concatenation allows the higher-dimensional matrix to dominate inner products. We first project each feature block onto the unit hypersphere via row-wise $\ell_2$ normalization, then apply scalar subspace weights $(w_{\text{uni}}, w_{\text{char}}, w_{\text{aux}})$ prior to horizontal stacking:
+When combining heterogeneous feature spaces-such as preprocessed lexical unigrams $M_{\text{uni}} \in \mathbb{R}^{N \times V_{\text{word}}}$ ($V_{\text{word}} \approx 4,500$) and raw sub-word character quadrigrams $M_{\text{char}} \in \mathbb{R}^{N \times V_{\text{char}}}$ ($V_{\text{char}} \approx 15,000+$)-direct concatenation allows the higher-dimensional matrix to dominate inner products. We first project each feature block onto the unit hypersphere via row-wise $\ell_2$ normalization, then apply scalar subspace weights $(w_{\text{uni}}, w_{\text{char}}, w_{\text{aux}})$ prior to horizontal stacking:
 
 $$\hat{\mathbf{v}}_{\text{uni}}^{(i)} = \frac{\mathbf{v}_{\text{uni}}^{(i)}}{\|\mathbf{v}_{\text{uni}}^{(i)}\|_2}, \quad \hat{\mathbf{v}}_{\text{char}}^{(i)} = \frac{\mathbf{v}_{\text{char}}^{(i)}}{\|\mathbf{v}_{\text{char}}^{(i)}\|_2}$$
 
@@ -112,22 +112,22 @@ We designed an 8-stage configurable preprocessing pipeline in `vector_semantics.
 
 ---
 
-### Stage 2 (Question 2 Sections 1–5): Feature Engineering, Subword N-Grams, SVD & Neural Ensembles
+### Stage 2 (Question 2 Sections 1-5): Feature Engineering, Subword N-Grams, SVD & Neural Ensembles
 Building upon the Optimal Q1 preprocessing pipeline, we executed five progressive experimental sections totaling **4,180+ feature extraction simulations**:
 
-1. **Section 1 — TF-IDF Weighting & Word N-Grams (`results/Q2_Section1_V1.csv`, 328 runs + 34 unified runs):**
+1. **Section 1: TF-IDF Weighting & Word N-Grams (`results/Q2_Section1_V1.csv`, 328 runs + 34 unified runs):**
    - Tested separate vs. unified matrices for word unigrams, bigrams ($23,716$ features), and trigrams ($43,955$ features), alongside $\chi^2$ `SelectKBest` ($k \in \{500, 1000, 2000, 3000, 5000\}$) and $\ell_2$ normalization.
    - **Finding:** Applying TF-IDF to preprocessed unigrams immediately improved Mean Rank from **1.875 $\to$ 1.5625** and Accuracy from **68.75% $\to$ 81.25% (13/16)**. Adding word bigrams/trigrams or aggressive $\chi^2$ pruning degraded performance due to extreme sparsity across 50-line validation samples.
-2. **Section 2 — L1-Penalized LinearSVC Feature Selection (34 runs):**
+2. **Section 2: L1-Penalized LinearSVC Feature Selection (34 runs):**
    - Replaced univariate $\chi^2$ selection with multivariate L1-regularized `LinearSVC(C=0.1, penalty="l1")` via `SelectFromModel`.
    - **Finding:** Hard feature elimination degraded unigram Mean Rank to $2.9375$ at $k \le 2000$, demonstrating that tail vocabulary items carry subtle sociolect cues essential for speaker disambiguation.
-3. **Section 3 — Sub-Word Character N-Grams & Lexical Normalization Interaction (`results/Q2_Section3_No_Lemma.csv`, 320 runs):**
+3. **Section 3: Sub-Word Character N-Grams & Lexical Normalization Interaction (`results/Q2_Section3_No_Lemma.csv`, 320 runs):**
    - Extracted character n-grams ($n \in \{(2,2), (2,3), (3,3), (4,4)\}$, `char_min_df` $\in \{3, 4, 5, 8, 10\}$) directly from raw lowercase dialogue and stacked them with $\ell_2$-normalized word unigrams.
    - **Finding:** Character quadrigrams ($n=4$, `char_min_df=3`) with lemmatization removed (`lex_norm=None`) jumped performance to **Mean Rank 1.3125** and **Accuracy 87.50% (14/16)**. Sub-word quadrigrams capture phonetic spellings, suffixes (`ing `, `n't `), and cross-boundary punctuation patterns.
-4. **Section 4 — Sublinear TF Scaling & Multi-Matrix Weighting Grid (`results/Q2_Section4.csv`, 2,520 runs):**
+4. **Section 4: Sublinear TF Scaling & Multi-Matrix Weighting Grid (`results/Q2_Section4.csv`, 2,520 runs):**
    - Evaluated a 2,520-configuration grid across scalar subspace weights $w_{\text{uni}} \in \{0.8, 0.9, 1.0, 1.25, 1.5, 2.0\}$, $w_{\text{char}} \in \{0.7, 0.8, 0.9, 1.0, 1.25\}$, word `min_df` $\in \{\text{None}, 2, 3\}$, and `sublinear_tf` $\in \{\text{True}, \text{False}\}$ across both validation and blind test splits.
    - **Finding:** Enabling `sublinear_tf=True` ($1 + \log(\text{tf})$) and balancing the block weights at **$w_{\text{uni}} = 0.8, w_{\text{char}} = 0.7$** achieved the global optimum: **Validation Mean Rank 1.125 (93.75% Accuracy, 15/16)** and **Blind Test Mean Rank 1.125 (87.50% Accuracy, 14/16)**.
-5. **Section 5 — Raw Word+Char N-Grams (`results/Q2_Section5.csv`, 1,152 runs), Dense POS Ratios + TruncatedSVD (300 dim), & Neural `SentenceTransformer` Ensembles:**
+5. **Section 5: Raw Word+Char N-Grams (`results/Q2_Section5.csv`, 1,152 runs), Dense POS Ratios + TruncatedSVD (300 dim), & Neural `SentenceTransformer` Ensembles:**
    - Tested `char_wb` + raw word bigrams (1,152 runs), 10 explicit spaCy/NLTK POS & syntactic ratios combined with **300-component `TruncatedSVD`**, and dense 768-dimensional **`SentenceTransformer('all-mpnet-base-v2')`** utterance embeddings weighted by $w_{\text{embed}} \in [0.05, 2.0]$.
 
 ![Dimensionality Reduction, Feature Selection & Matrix Weighting Analysis](docs/assets/svd_dimensionality_ablation.png)
@@ -137,11 +137,11 @@ Building upon the Optimal Q1 preprocessing pipeline, we executed five progressiv
 | Experimental Phase | Representation & Key Technique | Hyperparameters & Matrix Configuration | Val Mean Rank $\downarrow$ | Val Accuracy $\uparrow$ | Test Mean Rank $\downarrow$ | Test Accuracy $\uparrow$ |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: |
 | **0. Template Baseline** | Raw Whitespace Unigram Counts | `split()`, `DictVectorizer` (no normalization) | 3.6250 | 31.25% | 4.3125 | 25.00% |
-| **1. Q1 Optimal** | 8-Stage Preprocessing + Unigram Counts | `NLTK`, Lemma, No StopWords (Negation Kept), Keep `...` | 1.8750 | 68.75% | — | — |
-| **2. Q2 Section 1** | + TF-IDF Word Unigrams | `TfidfTransformer`, `ngrams=1`, Full Vocab | 1.5625 | 81.25% | — | — |
-| **3. Q2 Section 2** | + L1 `LinearSVC` Feature Selection | `SelectFromModel(LinearSVC(C=0.1, penalty='l1'))` | 1.5625 | 81.25% | — | — |
-| **4. Q2 Section 3a** | + Raw Character Trigrams (with Lemma) | Word `min_df=2` + Char $n=(3,3)$, `char_min_df=3`, L2 Norm | 1.3125 | 81.25% | — | — |
-| **5. Q2 Section 3b** | + Raw Character Quadrigrams (No Lemma) | `lex_norm=None`, Char $n=(4,4)$, `char_min_df=3`, L2 Norm | 1.3125 | 87.50% | — | — |
+| **1. Q1 Optimal** | 8-Stage Preprocessing + Unigram Counts | `NLTK`, Lemma, No StopWords (Negation Kept), Keep `...` | 1.8750 | 68.75% | - |: |
+| **2. Q2 Section 1** | + TF-IDF Word Unigrams | `TfidfTransformer`, `ngrams=1`, Full Vocab | 1.5625 | 81.25% | - |: |
+| **3. Q2 Section 2** | + L1 `LinearSVC` Feature Selection | `SelectFromModel(LinearSVC(C=0.1, penalty='l1'))` | 1.5625 | 81.25% | - |: |
+| **4. Q2 Section 3a** | + Raw Character Trigrams (with Lemma) | Word `min_df=2` + Char $n=(3,3)$, `char_min_df=3`, L2 Norm | 1.3125 | 81.25% | - |: |
+| **5. Q2 Section 3b** | + Raw Character Quadrigrams (No Lemma) | `lex_norm=None`, Char $n=(4,4)$, `char_min_df=3`, L2 Norm | 1.3125 | 87.50% | - |: |
 | **6. Q2 Section 4 (Optimal)** | **+ Sublinear TF & Balanced Block Weights** | **$w_{\text{uni}}=0.8, w_{\text{char}}=0.7$, `sublinear_tf=True`, Char $n=(4,4)$** | **1.1250** | **93.75%** | **1.1250** | **87.50%** |
 | **7. Q2 Section 5a** | Raw Word Bigrams + `char_wb` N-Grams | Word $n=(1,2)$, `min_df=2`, Char $n=(3,4)$, `sublinear_tf=True` | 1.1250 | 93.75% | 1.2500 | 81.25% |
 | **8. Q2 Section 5b** | + Dense POS Features + `TruncatedSVD` | 10 Syntactic/POS Ratios + `TruncatedSVD(n_components=300)` | 1.1250 | 93.75% | 1.1250 | 87.50% |
